@@ -4,14 +4,34 @@ document.addEventListener("DOMContentLoaded", () => {
   const signupForm = document.getElementById("signup-form");
   const messageDiv = document.getElementById("message");
 
-  // Function to fetch activities from API
+  // 追加: 簡易 HTML エスケープ（UI に直接挿入する文字列用）
+  function escapeHtml(str) {
+    if (typeof str !== "string") return "";
+    return str
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+  // 追加: バッジ用にイニシャルを作る（例: alice.smith -> AS）
+  function getInitials(email) {
+    const namePart = String(email).split("@")[0];
+    const parts = namePart.split(/[\._\-]+/).filter(Boolean);
+    const initials = (parts.slice(0, 2).map(p => p[0] || "").join("") || namePart[0] || "").toUpperCase();
+    return initials;
+  }
+
+  // Function to fetch activities from API (変更)
   async function fetchActivities() {
     try {
       const response = await fetch("/activities");
       const activities = await response.json();
 
-      // Clear loading message
+      // Clear loading message / previous content and reset select options
       activitiesList.innerHTML = "";
+      activitySelect.innerHTML = '<option value="">-- Select an activity --</option>';
 
       // Populate activities list
       Object.entries(activities).forEach(([name, details]) => {
@@ -20,11 +40,28 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const spotsLeft = details.max_participants - details.participants.length;
 
+        // 参加者リストの HTML（参加者がいない場合はメッセージ）
+        const participantsListHtml =
+          Array.isArray(details.participants) && details.participants.length
+            ? `<ul class="participants-list">${details.participants
+                .map(
+                  (p) =>
+                    `<li class="participant-item"><span class="participant-badge">${escapeHtml(
+                      getInitials(p)
+                    )}</span><span class="participant-name">${escapeHtml(p)}</span></li>`
+                )
+                .join("")}</ul>`
+            : '<p class="participants-empty">No participants yet.</p>';
+
         activityCard.innerHTML = `
-          <h4>${name}</h4>
-          <p>${details.description}</p>
-          <p><strong>Schedule:</strong> ${details.schedule}</p>
+          <h4>${escapeHtml(name)}</h4>
+          <p>${escapeHtml(details.description)}</p>
+          <p><strong>Schedule:</strong> ${escapeHtml(details.schedule)}</p>
           <p><strong>Availability:</strong> ${spotsLeft} spots left</p>
+          <div class="participants">
+            <strong>Participants</strong>
+            ${participantsListHtml}
+          </div>
         `;
 
         activitiesList.appendChild(activityCard);
